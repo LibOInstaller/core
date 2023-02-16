@@ -31,6 +31,11 @@ class Node:
         self.dirs = dirs
         self.files = files
 
+class UIGraphics:
+    def __init__(self):
+        self.banner = None
+        self.background = None
+
 class PackageGenerator:
 
     def __init__(self, jsonfile):
@@ -40,7 +45,6 @@ class PackageGenerator:
         self.version = jsondata['version']
         self.comments = jsondata['comments']
         self.installdir = jsondata['installdir']
-        self.license_file = jsondata['license_file']
         self.name = jsondata['name']
         self.guid = jsondata.get('product_guid', '*')
         self.upgrade_guid = jsondata['upgrade_guid']
@@ -52,6 +56,12 @@ class PackageGenerator:
         self.main_xml = self.basename + '.wxs'
         self.main_o = self.basename + '.wixobj'
         self.idnum = 0
+        self.graphics = UIGraphics()
+        if 'graphics' in jsondata:
+            if 'banner' in jsondata['graphics']:
+                self.graphics.banner = jsondata['graphics']['banner']
+            if 'background' in jsondata['graphics']:
+                self.graphics.background = jsondata['graphics']['background']
         if 'arch' in jsondata:
             self.arch = jsondata['arch']
         else:
@@ -76,7 +86,7 @@ class PackageGenerator:
         trials = glob(redist_glob)
         if self.need_msvcrt:
             if len(trials) > 1:
-                sys.exit('There are more than one redist dirs: ' +
+                sys.exit('There are more than one redist dirs: ' + 
                          ', '.join(trials))
             if len(trials) == 0:
                 sys.exit('No redist dirs were detected, install MSM redistributables with VS installer.')
@@ -206,6 +216,17 @@ class PackageGenerator:
         if platform.system() == "Windows":
             ET.SubElement(product, 'UIRef', {
                 'Id': 'WixUI_FeatureTree',
+            })
+
+        if self.graphics.banner is not None:
+            ET.SubElement(product, 'WixVariable', {
+                'Id': 'WixUIBannerBmp',
+                'Value': self.graphics.banner,
+            })
+        if self.graphics.background is not None:
+            ET.SubElement(product, 'WixVariable', {
+                'Id': 'WixUIDialogBmp', 
+                'Value': self.graphics.background,
             })
 
         top_feature = ET.SubElement(product, 'Feature', {
@@ -357,7 +378,6 @@ class PackageGenerator:
             subprocess.check_call([os.path.join(wixdir, 'light'),
                                    '-ext', 'WixUIExtension',
                                    '-cultures:en-us',
-                                   '-dWixUILicenseRtf=' + self.license_file,
                                    '-dcl:high',
                                    '-out', self.final_output,
                                    self.main_o])
